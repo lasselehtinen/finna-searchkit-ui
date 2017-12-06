@@ -7,39 +7,49 @@ import { SearchkitManager,SearchkitProvider,
   ViewSwitcherHits, ViewSwitcherToggle, DynamicRangeFilter,
   InputFilter, GroupedSelectedFilters,
   Layout, TopBar, LayoutBody, LayoutResults,
-  ActionBar, ActionBarRow, SideBar } from 'searchkit'
+  ActionBar, ActionBarRow, SideBar, CheckboxFilter, TermQuery, TagCloud} from 'searchkit'
 import './index.css'
 
-const host = "http://demo.searchkit.co/api/movies"
-const searchkit = new SearchkitManager(host)
+const host = "http://10.114.32.130:9200/finna-fix/"
+const searchkit = new SearchkitManager(host, {
+  basicAuth:"elastic:elastic"
+})
 
-const MovieHitsGridItem = (props)=> {
+const FinnaHitsGridItem = (props)=> {
   const {bemBlocks, result} = props
-  let url = "http://www.imdb.com/title/" + result._source.imdbId
+  let url = "https://www.finna.fi/Record/" + result._source.id
+  let imageSrc = "http://api.finna.fi" + result._source.images  
+  console.log(result);
+
   const source = extend({}, result._source, result.highlight)
   return (
     <div className={bemBlocks.item().mix(bemBlocks.container("item"))} data-qa="hit">
+      <a href={imageSrc} target="_blank">
+        <img data-qa="thumbnail" alt="{{__html:source.title}}" className={bemBlocks.item("poster")} src={imageSrc} width="170"/>
+      </a>        
+        <div data-qa="format" className={bemBlocks.item("formats")} dangerouslySetInnerHTML={{__html:source.formats[0].translated}}></div>
+        <div data-qa="year" className={bemBlocks.item("year")} dangerouslySetInnerHTML={{__html:source.year}}></div>
       <a href={url} target="_blank">
-        <img data-qa="poster" alt="presentation" className={bemBlocks.item("poster")} src={result._source.poster} width="170" height="240"/>
         <div data-qa="title" className={bemBlocks.item("title")} dangerouslySetInnerHTML={{__html:source.title}}></div>
       </a>
     </div>
   )
 }
 
-const MovieHitsListItem = (props)=> {
+const FinnaHitsListItem = (props)=> {
   const {bemBlocks, result} = props
-  let url = "http://www.imdb.com/title/" + result._source.imdbId
+  let url = "https://www.finna.fi/Record/" + result._source.id
+  let imageSrc = "http://api.finna.fi" + result._source.images
   const source = extend({}, result._source, result.highlight)
   return (
     <div className={bemBlocks.item().mix(bemBlocks.container("item"))} data-qa="hit">
       <div className={bemBlocks.item("poster")}>
-        <img alt="presentation" data-qa="poster" src={result._source.poster}/>
+        <img data-qa="Image" src={imageSrc}/>
       </div>
       <div className={bemBlocks.item("details")}>
         <a href={url} target="_blank"><h2 className={bemBlocks.item("title")} dangerouslySetInnerHTML={{__html:source.title}}></h2></a>
-        <h3 className={bemBlocks.item("subtitle")}>Released in {source.year}, rated {source.imdbRating}/10</h3>
-        <div className={bemBlocks.item("text")} dangerouslySetInnerHTML={{__html:source.plot}}></div>
+        <div data-qa="format" className={bemBlocks.item("formats")} dangerouslySetInnerHTML={{__html:source.formats[0].translated}}></div>
+        <h3 className={bemBlocks.item("year")}>{source.year}</h3>
       </div>
     </div>
   )
@@ -51,25 +61,26 @@ class App extends Component {
       <SearchkitProvider searchkit={searchkit}>
         <Layout>
           <TopBar>
-            <div className="my-logo">Searchkit Acme co</div>
-            <SearchBox autofocus={true} searchOnChange={true} prefixQueryFields={["actors^1","type^2","languages","title^10"]}/>
+            <div className="my-logo">Finna demo</div>
+            <SearchBox autofocus={true} searchOnChange={true} prefixQueryFields={["title^1","subjects^2"]}/>
           </TopBar>
 
         <LayoutBody>
 
           <SideBar>
-            <HierarchicalMenuFilter fields={["type.raw", "genres.raw"]} title="Categories" id="categories"/>
-            <DynamicRangeFilter field="metaScore" id="metascore" title="Metascore" rangeFormatter={(count)=> count + "*"}/>
-            <RangeFilter min={0} max={10} field="imdbRating" id="imdbRating" title="IMDB Rating" showHistogram={true}/>
-            <InputFilter id="writers" searchThrottleTime={500} title="Writers" placeholder="Search writers" searchOnChange={true} queryFields={["writers"]} />
-            <RefinementListFilter id="actors" title="Actors" field="actors.raw" size={10}/>
-            <RefinementListFilter id="writersFacets" translations={{"facets.view_more":"View more writers"}} title="Writers" field="writers.raw" operator="OR" size={10}/>
-            <RefinementListFilter id="countries" title="Countries" field="countries.raw" operator="OR" size={10}/>
-            <NumericRefinementListFilter id="runtimeMinutes" title="Length" field="runtimeMinutes" options={[
+            <RefinementListFilter id="formats" title="Format" field="formats.translated.keyword" operator="AND"/>
+            <InputFilter id="subjects" searchThrottleTime={500} title="Subjects" placeholder="Search subjects" searchOnChange={true} queryFields={["subjects"]} />
+            <RangeFilter field="year" id="year" min={1850} max={2018} showHistogram={true} title="Year"/>
+            <NumericRefinementListFilter id="decade" title="Decade" field="year" options={[
               {title:"All"},
-              {title:"up to 20", from:0, to:20},
-              {title:"21 to 60", from:21, to:60},
-              {title:"60 or more", from:61, to:1000}
+              {title:"1930s", from:1930, to:1939},
+              {title:"1940s", from:1940, to:1949},
+              {title:"1950s", from:1950, to:1959},
+              {title:"1960s", from:1960, to:1969},
+              {title:"1970s", from:1970, to:1979},
+              {title:"1980s", from:1980, to:1989},
+              {title:"1990s", from:1990, to:1999},
+              {title:"2000->", from:2000, to:2020},
             ]}/>
           </SideBar>
           <LayoutResults>
@@ -82,8 +93,8 @@ class App extends Component {
                 <ViewSwitcherToggle/>
                 <SortingSelector options={[
                   {label:"Relevance", field:"_score", order:"desc"},
-                  {label:"Latest Releases", field:"released", order:"desc"},
-                  {label:"Earliest Releases", field:"released", order:"asc"}
+                  {label:"Newest", field:"year", order:"desc"},
+                  {label:"Oldest", field:"year", order:"asc"}
                 ]}/>
               </ActionBarRow>
 
@@ -94,11 +105,11 @@ class App extends Component {
 
             </ActionBar>
             <ViewSwitcherHits
-                hitsPerPage={12} highlightFields={["title","plot"]}
-                sourceFilter={["plot", "title", "poster", "imdbId", "imdbRating", "year"]}
+                hitsPerPage={16} highlightFields={["title"]}
+                sourceFilter={["title", "id", "images", "year", "formats"]}
                 hitComponents={[
-                  {key:"grid", title:"Grid", itemComponent:MovieHitsGridItem, defaultOption:true},
-                  {key:"list", title:"List", itemComponent:MovieHitsListItem}
+                  {key:"grid", title:"Grid", itemComponent:FinnaHitsGridItem, defaultOption:true},
+                  {key:"list", title:"List", itemComponent:FinnaHitsListItem}
                 ]}
                 scrollTo="body"
             />
