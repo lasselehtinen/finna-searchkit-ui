@@ -4,7 +4,7 @@ Used to start new applications which use Searchkit. Based off the popular create
 
 ##  Install instructions
 
-- git clone git@github.com:searchkit/searchkit-starter-app.git
-- cd searchkit-starter-app
+- git clone git@github.com:lasselehtinen/finna-searchkit-ui.git
+- cd finna-searchkit-ui
 - yarn
 - npm start
